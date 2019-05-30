@@ -13,14 +13,14 @@
 `define BNE  6'h5
 `define HALT 6'h11 /* this is not for MIPS */
 /******************************************************************************/
-/*
+
 module m_top ();
   reg r_clk=0; initial forever #50 r_clk = ~r_clk;
   reg r_rst=0;
 
   wire w_halt;
   wire [31:0] w_rout;
-  m_proc11 p (r_clk, r_rst, w_rout, w_halt);
+  m_proc12 p (r_clk, r_rst, w_rout, w_halt);
   always@(posedge r_clk) if (w_halt) $finish;
 
   reg [31:0] r_cnt = 0;
@@ -31,8 +31,9 @@ module m_top ();
            p.MeWb_rd2, p.w_rslt2);
   end
 endmodule
-*/
+
 /******************************************************************************/
+/*
 module m_main (w_clk, w_btnu, w_btnd, w_led, r_sg, r_an);
   input  wire w_clk, w_btnu, w_btnd;
   output wire [15:0] w_led;
@@ -59,15 +60,16 @@ module m_main (w_clk, w_btnu, w_btnd, w_led, r_sg, r_an);
   always @(posedge w_clk2) r_sg <= w_sg;
   always @(posedge w_clk2) r_an <= w_an;
 endmodule
+*/
 
 /******************************************************************************/
-module m_proc11 (w_clk, w_rst, r_rout, r_halt);
+module m_proc12 (w_clk, w_rst, r_rout, r_halt);
   input  wire w_clk, w_rst;
   output reg [31:0] r_rout;
   output reg        r_halt;
 
   reg  [31:0] IfId_pc4=0;                                    // pipe regs between IF and ID
-  reg  [31:0] IdEx_rrs=0, IdEx_rrt=0, IdEx_rrt2=0;           // pipe regs between ID and EX
+  reg  [31:0] IdEx_rrs=0,  IdEx_rrt=0, IdEx_rrt2=0;           // pipe regs between ID and EX
   reg  [31:0] ExMe_rslt=0, ExMe_rrt=0;                       // pipe regs between EX and ME
   reg  [31:0] MeWb_rslt=0;                                   // pipe regs between Me and WB
   reg   [5:0]             IdEx_op=0,  ExMe_op=0,  MeWb_op=0; //
@@ -75,6 +77,8 @@ module m_proc11 (w_clk, w_rst, r_rout, r_halt);
   reg   [4:0] IfId_rd2=0, IdEx_rd2=0, ExMe_rd2=0, MeWb_rd2=0;//
   reg         IfId_w=0,   IdEx_w=0,   ExMe_w=0,   MeWb_w=0;  //
   reg         IfId_we=0,  IdEx_we=0,  ExMe_we=0;             //
+  reg   [4:0]             IdEx_rs=0,  ExMe_rs=0;             //
+  reg   [4:0]             IdEx_rt=0,  ExMe_rt=0;             //
   wire [31:0] IfId_ir, MeWb_ldd;                             // note
   /**************************** IF stage **********************************/
   wire w_taken;
@@ -82,7 +86,7 @@ module m_proc11 (w_clk, w_rst, r_rout, r_halt);
   reg  [31:0] r_pc  = 0;
   wire [31:0] w_pc4 = r_pc + 4;
   m_memory m_imem (w_clk, r_pc[13:2], 1'b0, 0, IfId_ir);
-  always @(posedge w_clk) begin
+  always @(posedge w_clk) begin // 1clockに１命令を行う
     r_pc     <= #3 (w_rst | r_halt) ? 0 : (w_taken) ? w_tpc : w_pc4;
     IfId_pc  <= #3 r_pc;
     IfId_pc4 <= #3 w_pc4;
@@ -101,6 +105,8 @@ module m_proc11 (w_clk, w_rst, r_rout, r_halt);
   assign      w_taken = (w_op==`BNE && w_rrs!=w_rrt);
   m_regfile m_regs (w_clk, w_rs, w_rt, MeWb_rd2, MeWb_w, w_rslt2, w_rrs, w_rrt);
 
+  /* クロック立ち上がりは半サイクル終わったところ
+     立ち上がる前に内容を取ってくる */
   always @(posedge w_clk) begin
     IdEx_pc   <= #3 IfId_pc;
     IdEx_op   <= #3 w_op;
@@ -110,9 +116,18 @@ module m_proc11 (w_clk, w_rst, r_rout, r_halt);
     IdEx_rrs  <= #3 w_rrs;
     IdEx_rrt  <= #3 w_rrt;
     IdEx_rrt2 <= #3 w_rrt2;
+    IdEx_rs   <= #3 w_rs;
+    IdEx_rt   <= #3 w_rt;
   end
+
   /**************************** EX stage ***********************************/
-  wire [31:0] #10 w_rslt = IdEx_rrs + IdEx_rrt2; // ALU
+  /* data forwarding */
+  /* クロック立ち上がりは半サイクル終わったところ
+     立ち上がる前に内容を取ってくる */
+  wire [31:0] #10 w_rrs3 = (w_rs==IdEx_rs) ? ExMe_rslt : (w_rs==ExMe_rs) ? w_rslt2 : IdEx_rrs;
+  wire [31:0] #10 w_rrt3 = (w_rt==IdEx_rt) ? ExMe_rslt : (w_rs==ExMe_rd) ? w_rslt2 : IdEx_rrt2;
+
+  wire [31:0] #10 w_rslt = w_rrs3 + w_rrt3; // ALU
   always @(posedge w_clk) begin
     ExMe_pc   <= #3 IdEx_pc;
     ExMe_op   <= #3 IdEx_op;
@@ -121,6 +136,8 @@ module m_proc11 (w_clk, w_rst, r_rout, r_halt);
     ExMe_we   <= #3 IdEx_we;
     ExMe_rslt <= #3 w_rslt;
     ExMe_rrt  <= #3 IdEx_rrt;
+    ExMe_rs   <= #3 IdEx_rs;
+    ExMe_rt   <= #3 IdEx_rt;
   end
   /**************************** MEM stage **********************************/
   m_memory m_dmem (w_clk, ExMe_rslt[13:2], ExMe_we, ExMe_rrt, MeWb_ldd);
