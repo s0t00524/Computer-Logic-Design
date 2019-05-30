@@ -70,7 +70,7 @@ module m_proc11 (w_clk, w_rst, r_rout, r_halt);
   reg  [31:0] IdEx_rrs=0, IdEx_rrt=0, IdEx_rrt2=0;           // pipe regs between ID and EX
   reg  [31:0] ExMe_rslt=0, ExMe_rrt=0;                       // pipe regs between EX and ME
   reg  [31:0] MeWb_rslt=0;                                   // pipe regs between Me and WB
-  reg   [5:0]             IdEx_op=0,  ExMe_op=0,  MeWb_op=0; // pipe
+  reg   [5:0]             IdEx_op=0,  ExMe_op=0,  MeWb_op=0; // 
   reg  [31:0] IfId_pc=0,  IdEx_pc=0,  ExMe_pc=0,  MeWb_pc=0; //
   reg   [4:0] IfId_rd2=0, IdEx_rd2=0, ExMe_rd2=0, MeWb_rd2=0;//
   reg         IfId_w=0,   IdEx_w=0,   ExMe_w=0,   MeWb_w=0;  //
