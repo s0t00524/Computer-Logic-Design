@@ -63,6 +63,7 @@ module m_main (w_clk, w_btnu, w_btnd, w_led, r_sg, r_an);
 endmodule
 
 /******************************************************************************/
+/* define the state of each section */
 `define S_IF  1
 `define S_ID  2
 `define S_EX  3
