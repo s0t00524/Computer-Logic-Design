@@ -1,5 +1,5 @@
 /******************************************************************************/
-/* Sample Verilog HDL Code for Computer Logic Design     Arch Lab. TOKYO TECH */
+/* MultiCycle Processer with Pipeline Process              Author:  Soto Anno */
 /******************************************************************************/
 `default_nettype none
 
@@ -77,8 +77,8 @@ module m_proc12 (w_clk, w_rst, r_rout, r_halt);
   reg   [4:0] IfId_rd2=0, IdEx_rd2=0, ExMe_rd2=0, MeWb_rd2=0;//
   reg         IfId_w=0,   IdEx_w=0,   ExMe_w=0,   MeWb_w=0;  //
   reg         IfId_we=0,  IdEx_we=0,  ExMe_we=0;             //
-  reg   [4:0]             IdEx_rs=0,  ExMe_rs=0;             //
-  reg   [4:0]             IdEx_rt=0,  ExMe_rt=0;             //
+  // reg   [4:0]             IdEx_rs=0,  ExMe_rs=0;             //
+  // reg   [4:0]             IdEx_rt=0,  ExMe_rt=0;             //
   wire [31:0] IfId_ir, MeWb_ldd;                             // note
   /**************************** IF stage **********************************/
   wire w_taken;
@@ -102,8 +102,13 @@ module m_proc12 (w_clk, w_rst, r_rout, r_halt);
   wire [31:0] w_imm32 = {{16{w_imm[15]}}, w_imm};
   wire [31:0] w_rrt2  = (w_op>6'h5) ? w_imm32 : w_rrt;
   assign      w_tpc   = IfId_pc4 + {w_imm32[29:0], 2'h0};
-  assign      w_taken = (w_op==`BNE && w_rrs!=w_rrt);
+  assign      w_taken = ((w_op==`BNE && w_rrs3!=w_rrt3) ||
+                         (w_op==`BNE && w_rrs3!=w_rrt3));
   m_regfile m_regs (w_clk, w_rs, w_rt, MeWb_rd2, MeWb_w, w_rslt2, w_rrs, w_rrt);
+
+  /* data forwarding */
+  wire [31:0] w_rrs3  = (w_rs==IdEx_rd2) ? ExMe_rslt : (w_rs==ExMe_rd2) ? w_rslt2 : w_rrs;
+  wire [31:0] w_rrt3  = (w_rt==IdEx_rd2) ? ExMe_rslt : (w_rt==ExMe_rd2) ? w_rslt2 : w_rrt;
 
   /* クロック立ち上がりは半サイクル終わったところ
      立ち上がる前に内容を取ってくる */
@@ -116,18 +121,18 @@ module m_proc12 (w_clk, w_rst, r_rout, r_halt);
     IdEx_rrs  <= #3 w_rrs;
     IdEx_rrt  <= #3 w_rrt;
     IdEx_rrt2 <= #3 w_rrt2;
-    IdEx_rs   <= #3 w_rs;
-    IdEx_rt   <= #3 w_rt;
+    // IdEx_rs   <= #3 w_rs;
+    // IdEx_rt   <= #3 w_rt;
   end
 
   /**************************** EX stage ***********************************/
   /* data forwarding */
   /* クロック立ち上がりは半サイクル終わったところ
      立ち上がる前に内容を取ってくる */
-  wire [31:0] #10 w_rrs3 = (w_rs==IdEx_rs) ? ExMe_rslt : (w_rs==ExMe_rs) ? w_rslt2 : IdEx_rrs;
-  wire [31:0] #10 w_rrt3 = (w_rt==IdEx_rt) ? ExMe_rslt : (w_rs==ExMe_rd) ? w_rslt2 : IdEx_rrt2;
+  wire [31:0] #10 w_rrs4 = (w_rs==IdEx_rd2) ? ExMe_rslt : (w_rs==ExMe_rd2) ? w_rslt2 :  IdEx_rrs;
+  wire [31:0] #10 w_rrt4 = (w_rt==IdEx_rd2) ? ExMe_rslt : (w_rs==ExMe_rd2) ? w_rslt2 : IdEx_rrt2;
 
-  wire [31:0] #10 w_rslt = w_rrs3 + w_rrt3; // ALU
+  wire [31:0] #10 w_rslt = w_rrs4 + w_rrt4; // ALU
   always @(posedge w_clk) begin
     ExMe_pc   <= #3 IdEx_pc;
     ExMe_op   <= #3 IdEx_op;
@@ -136,8 +141,8 @@ module m_proc12 (w_clk, w_rst, r_rout, r_halt);
     ExMe_we   <= #3 IdEx_we;
     ExMe_rslt <= #3 w_rslt;
     ExMe_rrt  <= #3 IdEx_rrt;
-    ExMe_rs   <= #3 IdEx_rs;
-    ExMe_rt   <= #3 IdEx_rt;
+    // ExMe_rs   <= #3 IdEx_rs;
+    // ExMe_rt   <= #3 IdEx_rt;
   end
   /**************************** MEM stage **********************************/
   m_memory m_dmem (w_clk, ExMe_rslt[13:2], ExMe_we, ExMe_rrt, MeWb_ldd);
