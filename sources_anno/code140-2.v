@@ -72,7 +72,7 @@ module m_proc12 (w_clk, w_rst, r_rout, r_halt);
 
   reg  [31:0] IfId_pc4=0;                                    // pipe regs between IF and ID
   reg  [31:0] IdEx_rrs=0,  IdEx_rrt=0, IdEx_rrt2=0;          // pipe regs between ID and EX
-  reg  [31:0] ExMe_rslt=0, ExMe_rrt=0;                       // pipe regs between EX and ME
+  reg  [31:0] ExMe_rslt=0, ExMe_rrt=0, ExMe_rrt2=0;          // pipe regs between EX and ME
   reg  [31:0] MeWb_rslt=0;                                   // pipe regs between Me and WB
   reg   [5:0]             IdEx_op=0,  ExMe_op=0,  MeWb_op=0; //
   reg  [31:0] IfId_pc=0,  IdEx_pc=0,  ExMe_pc=0,  MeWb_pc=0; //
@@ -104,7 +104,7 @@ module m_proc12 (w_clk, w_rst, r_rout, r_halt);
   wire [31:0] w_imm32 = {{16{w_imm[15]}}, w_imm};
   wire [31:0] w_rrt2  = (w_op>6'h5) ? w_imm32 : w_rrt;
   assign      w_tpc   = IfId_pc4 + {w_imm32[29:0], 2'h0};
-  assign      w_taken = (w_op==`BNE && w_rrs!=w_rrt);
+  assign      w_taken = (w_op==`BNE && w_rrs3!=w_rrt3);
   m_regfile m_regs (w_clk, w_rs, w_rt, MeWb_rd2, MeWb_w, w_rslt2, w_rrs, w_rrt);
 
   // /* data forwarding */
@@ -114,9 +114,9 @@ module m_proc12 (w_clk, w_rst, r_rout, r_halt);
   //                           ? ExMe_rslt : (ExMe_rd2!=0 && ExMe_rd2==IdEx_rt) ? w_rslt2 : w_rrt;
 
   wire [31:0] #10 w_rrs3 = (MeWb_w && MeWb_rd2!=0 && ExMe_rd2!=IdEx_rs && MeWb_rd2==IdEx_rs)
-                                ? w_rslt2 : (ExMe_w && ExMe_rd2!=0 && ExMe_rd2==IdEx_rs) ? ExMe_rslt : w_rrs;
+                                ? w_rslt2 : (ExMe_w && ExMe_rd2!=0 && ExMe_rd2==IdEx_rs) ? ExMe_rslt : IdEx_rrs;
   wire [31:0] #10 w_rrt3 = (MeWb_w && MeWb_rd2!=0 && ExMe_rd2!=IdEx_rt && MeWb_rd2==IdEx_rt)
-                                ? w_rslt2 : (ExMe_w && ExMe_rd2!=0 && ExMe_rd2==IdEx_rt) ? ExMe_rslt : w_rrt;
+                                ? w_rslt2 : (ExMe_w && ExMe_rd2!=0 && ExMe_rd2==IdEx_rt) ? ExMe_rslt : IdEx_rrt;
 
   /* クロック立ち上がりは半サイクル終わったところ
      立ち上がる前に内容を取ってくる */
@@ -138,11 +138,18 @@ module m_proc12 (w_clk, w_rst, r_rout, r_halt);
   /* クロック立ち上がりはサイクルのはじめ
      立ち上がる前に内容を取ってくる */
   wire [31:0] #10 w_rrs4 = (MeWb_w && MeWb_rd2!=0 && ExMe_rd2!=IdEx_rs && MeWb_rd2==IdEx_rs)
-                                ? w_rslt2 : (ExMe_w && ExMe_rd2!=0 && ExMe_rd2==IdEx_rs) ? ExMe_rslt : w_rrs;
+                                ? w_rslt2 : (ExMe_w && ExMe_rd2!=0 && ExMe_rd2==IdEx_rs) ? ExMe_rslt : IdEx_rrs;
   wire [31:0] #10 w_rrt4 = (MeWb_w && MeWb_rd2!=0 && ExMe_rd2!=IdEx_rt && MeWb_rd2==IdEx_rt)
-                                ? w_rslt2 : (ExMe_w && ExMe_rd2!=0 && ExMe_rd2==IdEx_rt) ? ExMe_rslt : w_rrt2;
+                                ? w_rslt2 : (ExMe_w && ExMe_rd2!=0 && ExMe_rd2==IdEx_rt) ? ExMe_rslt : IdEx_rrt2;
 
   wire [31:0] #10 w_rslt = w_rrs4 + w_rrt4; // ALU
+
+  // wire [31:0] #10 w_Ex_rrt = (MeWb_w && MeWb_rd2!=0 && ExMe_rd2!=IdEx_rt && MeWb_rd2==IdEx_rt)
+  //                               ? w_rslt2 : (ExMe_w && ExMe_rd2!=0 && ExMe_rd2==IdEx_rt) ? ExMe_rslt : IdEx_rrt;
+
+  wire [31:0] #10 w_Ex_rrt = ( MeWb_rd2!=0 && ExMe_rd2!=IdEx_rt && MeWb_rd2==IdEx_rt)
+                                ? w_rslt2 : ( ExMe_rd2!=0 && ExMe_rd2==IdEx_rt) ? ExMe_rslt : IdEx_rrt;
+
   always @(posedge w_clk) begin
     ExMe_pc   <= #3 IdEx_pc;
     ExMe_op   <= #3 IdEx_op;
@@ -150,14 +157,15 @@ module m_proc12 (w_clk, w_rst, r_rout, r_halt);
     ExMe_w    <= #3 IdEx_w;
     ExMe_we   <= #3 IdEx_we;
     ExMe_rslt <= #3 w_rslt;
-    ExMe_rrt  <= #3 IdEx_rrt;
+    ExMe_rrt  <= #3 w_Ex_rrt; // forwarding
+    ExMe_rrt2  <= #3 IdEx_rrt2;
     ExMe_rs   <= #3 IdEx_rs;
     ExMe_rt   <= #3 IdEx_rt;
   end
   /**************************** MEM stage **********************************/
 
   /* data forwarding */
-  
+
 
   m_memory m_dmem (w_clk, ExMe_rslt[13:2], ExMe_we, ExMe_rrt, MeWb_ldd);
   always @(posedge w_clk) begin
@@ -186,8 +194,8 @@ module m_memory (w_clk, w_addr, w_we, w_din, r_dout);
   output reg  [31:0] r_dout;
   reg [31:0] cm_ram [0:4095]; // 4K word (4096 x 32bit) memory
   always @(posedge w_clk) begin
-    r_dout <= cm_ram[w_addr];
-    if (w_we) cm_ram[w_addr] <= w_din;
+    r_dout <= cm_ram[w_addr];            // 読み出し
+    if (w_we) cm_ram[w_addr] <= w_din;  // 書き込み
   end
   initial r_dout = 0;
 
