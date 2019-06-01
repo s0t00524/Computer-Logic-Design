@@ -13,7 +13,7 @@
 `define HALT 6'h11 /* this is not for MIPS */
 
 /******************************************************************************/
-/*
+
  module m_top ();
   reg r_clk=0; initial forever #50 r_clk = ~r_clk;
   reg r_rst=0;
@@ -32,9 +32,10 @@
              p.w_rrs, p.w_rrt2, p.w_rslt2);
   end
 endmodule
-*/
+
 
 /******************************************************************************/
+/*
 module m_main (w_clk, w_btnu, w_btnd, w_led, r_sg, r_an);
   input  wire w_clk, w_btnu, w_btnd;
   output wire [15:0] w_led;
@@ -61,9 +62,8 @@ module m_main (w_clk, w_btnu, w_btnd, w_led, r_sg, r_an);
   always @(posedge w_clk2) r_sg <= w_sg;
   always @(posedge w_clk2) r_an <= w_an;
 endmodule
-
+*/
 /******************************************************************************/
-/* define the state of each section */
 `define S_IF  1
 `define S_ID  2
 `define S_EX  3
@@ -76,15 +76,29 @@ module m_proc08 (w_clk, w_rst, r_rout, r_halt);
   output reg        r_halt;
 
   wire [31:0] w_ir, w_rrs, w_rrt, w_imm32, w_rrt2, w_rslt, w_ldd, w_rslt2;
-  reg  [31:0] r_pc   = 0;
+  reg  [31:0] r_pc   = 4;
   reg  [31:0] r_rrs  = 0;
   reg  [31:0] r_rrt  = 0;
   reg  [31:0] r_rrt2 = 0;
   reg  [31:0] r_npc  = 0;
   reg   [2:0] state  = 0;
   always @(posedge w_clk) begin
-    state <= #3 (w_rst | r_halt) ? 0 : (state==`S_WB) ? `S_IF : state + 1;
+      // state <= #10 (w_rst | r_halt) ?
+      //   0 : (state==`S_WB) ?
+      //     `S_IF : (state==`S_EX && (w_op==`BEQ | w_op==`BNE)) ?
+      //       `S_IF : (state==`S_EX && (w_op==`ADD | w_op==`ADDI)) ?
+      //         `S_WB : (state==`S_MEM && w_op==`SW) ?
+      //           `S_IF : state + 1;
+      // state <= #10 (w_rst | r_halt) ?
+      //   0 : (state==`S_WB) ?
+      //     `S_IF : (state==`S_EX && (w_op==`ADD | w_op==`ADDI)) ?
+      //       `S_WB : state + 1;
+      // if(state==`S_WB) state <= `S_IF;
+      // else if(state==`S_EX & (w_op==`ADD | w_op==`ADDI)) state <= `S_WB;
+      // else state <= state+1;
+      state <= #3 (w_rst | r_halt) ? 0 : (state==`S_WB) ? `S_IF : state + 1;
   end
+
   /**************************** IF  **********************************/
   wire  [5:0] w_op = w_ir[31:26];
   wire  [4:0] w_rs = w_ir[25:21];
@@ -92,11 +106,13 @@ module m_proc08 (w_clk, w_rst, r_rout, r_halt);
   wire  [4:0] w_rd = w_ir[15:11];
   wire        w_taken = ((w_op==`BEQ && r_rrs==r_rrt2) ||
                          (w_op==`BNE && r_rrs!=r_rrt2));
+  wire w_taken2 = ((w_op==`BEQ && w_rrs!=w_rrt2) || (w_op==`BNE && w_rrs==w_rrt2));
   wire [31:0] w_npc = r_pc + 4;
   wire [31:0] w_tpc = r_npc + {w_imm32[29:0], 2'h0};
   always @(posedge w_clk) if(state==`S_WB) begin
-    r_pc <= #3 (w_rst | r_halt) ? 0 : (w_taken) ? w_tpc : w_npc;
+      r_pc <= #3 (w_rst | r_halt) ? 0 : (w_taken2) ? r_pc+8 : (w_taken) ? w_tpc : w_npc;
   end
+
   m_memory m_imem (w_clk, r_pc[13:2], 1'b0, 0, w_ir);
   always @(posedge w_clk) if(state==`S_IF) begin
     r_npc <= #3 w_npc;
@@ -122,6 +138,10 @@ module m_proc08 (w_clk, w_rst, r_rout, r_halt);
   always @(posedge w_clk) if(state==`S_EX) begin
     r_rslt <= #3 w_rslt;
     r_dmin <= #3 r_rrt;
+    if(state==`S_EX & (w_op==`ADD | w_op==`ADDI)) begin
+        r_mrslt = r_rslt;
+        state <= `S_WB;
+    end
   end
   always @(posedge w_clk) r_we <= #3 (state!=`S_EX) ? 0 : w_we;
   /**************************** MEM **********************************/

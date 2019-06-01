@@ -13,7 +13,7 @@
 `define BNE  6'h5
 `define HALT 6'h11 /* this is not for MIPS */
 /******************************************************************************/
-/*
+
 module m_top ();
   reg r_clk=0; initial forever #50 r_clk = ~r_clk;
   reg r_rst=0;
@@ -31,8 +31,9 @@ module m_top ();
            p.MeWb_rd2, p.w_rslt2);
   end
 endmodule
-*/
+
 /******************************************************************************/
+/*
 module m_main (w_clk, w_btnu, w_btnd, w_led, r_sg, r_an);
   input  wire w_clk, w_btnu, w_btnd;
   output wire [15:0] w_led;
@@ -59,7 +60,7 @@ module m_main (w_clk, w_btnu, w_btnd, w_led, r_sg, r_an);
   always @(posedge w_clk2) r_sg <= w_sg;
   always @(posedge w_clk2) r_an <= w_an;
 endmodule
-
+*/
 /******************************************************************************/
 module m_proc11 (w_clk, w_rst, r_rout, r_halt);
   input  wire w_clk, w_rst;
