@@ -33,6 +33,7 @@ module m_top ();
 endmodule
 
 /******************************************************************************/
+<<<<<<< HEAD
 // module m_main (w_clk, w_btnu, w_btnd, w_led, r_sg, r_an);
 //   input  wire w_clk, w_btnu, w_btnd;
 //   output wire [15:0] w_led;
@@ -59,7 +60,40 @@ endmodule
 //   always @(posedge w_clk2) r_sg <= w_sg;
 //   always @(posedge w_clk2) r_an <= w_an;
 // endmodule
+=======
+/*
+module m_main (w_clk, w_btnu, w_btnd, w_led, r_sg, r_an);
+  input  wire w_clk, w_btnu, w_btnd;
+  output wire [15:0] w_led;
+  output reg [6:0] r_sg;  // cathode segments
+  output reg [7:0] r_an;  // common anode
 
+  wire w_clk2, w_locked;
+  clk_wiz_0 clk_wiz (w_clk2, 0, w_locked, w_clk);
+
+  wire w_rst = ~w_locked;
+  wire [31:0] w_rout;
+  wire w_halt;
+  m_proc11 p (w_clk2, w_rst, w_rout, w_halt);
+
+  reg [31:0] r_cnt = 0;
+  always @(posedge w_clk2) r_cnt <= (w_rst) ? 0 : (~w_halt) ? r_cnt + 1 : r_cnt;
+
+  wire [31:0] w_data = (w_btnu) ? r_cnt : w_rout;
+  assign w_led = (w_btnd) ? w_data[31:16] : w_data[15:0];
+
+  wire [6:0] w_sg;
+  wire [7:0] w_an;
+  m_7segcon m_7segcon(w_clk2, w_data, w_sg, w_an);
+  always @(posedge w_clk2) r_sg <= w_sg;
+  always @(posedge w_clk2) r_an <= w_an;
+endmodule
+*/
+<<<<<<< HEAD
+=======
+>>>>>>> 8a38c695c11943da5a026732bc1d9d87ebd75214
+
+>>>>>>> 52d76d9ecec8dbf89b630607cc5587ffa213c00d
 /******************************************************************************/
 module m_proc11 (w_clk, w_rst, r_rout, r_halt);
   input  wire w_clk, w_rst;

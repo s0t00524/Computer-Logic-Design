@@ -74,9 +74,12 @@ module m_proc07 (w_clk, w_rst, r_rout, r_halt);
   wire  [4:0] w_rd = w_ir[15:11];
   wire        w_taken = ((w_op==`BEQ && w_rrs==w_rrt2) ||
                          (w_op==`BNE && w_rrs!=w_rrt2));
+  wire w_taken2 = ((w_op==`BEQ && w_rrs!=w_rrt2) || (w_op==`BNE && w_rrs==w_rrt2));
+
   wire [31:0] w_npc = r_pc + 4;
   wire [31:0] w_tpc = w_npc + {w_imm32[29:0], 2'h0};
-  always @(posedge w_clk) r_pc <= #3 (w_rst | r_halt) ? 0 : (w_taken) ? w_tpc : w_npc;
+  always @(posedge w_clk) r_pc <= #3 (w_rst | r_halt) ? 0 : (w_taken2) ? r_pc+8 : (w_taken) ? w_tpc : w_npc;
+
   m_aimemory m_imem (w_clk, r_pc[13:2], 1'b0, 0, w_ir);
 
   wire  [4:0] w_rd2 = (w_op!=0) ? w_rt : w_rd;
