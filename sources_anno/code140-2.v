@@ -26,10 +26,10 @@ module m_top ();
   reg [31:0] r_cnt = 0;
   always@(posedge r_clk) r_cnt <= r_cnt + 1;
   always@(posedge r_clk) begin #90
-    $write("%8d : %x %x[%x] %x %x %x | %d %x \n",
+    $write("%8d : %x %x[%x] %x %x %x | %d %x %x %x \n",
            r_cnt, p.r_pc, p.IfId_pc, p.w_op, p.IdEx_pc, p.ExMe_pc, p.MeWb_pc,
-           p.MeWb_rd2, p.w_rslt2);
-    // $display("%8d : %04d %08x",  r_cnt, p.r_pc[31:2], w_rout);
+           p.MeWb_rd2, p.w_rrs, p.w_rrt, p.w_rslt2);
+    //$display("%8d : %04d %08x",  r_cnt, p.r_pc[31:2], w_rout);
   end
   // always@(*) $display("%d", r_clk);
 endmodule
@@ -144,9 +144,6 @@ module m_proc12 (w_clk, w_rst, r_rout, r_halt);
 
   wire [31:0] #10 w_rslt = w_rrs4 + w_rrt4; // ALU
 
-  // wire [31:0] #10 w_Ex_rrt = (MeWb_w && MeWb_rd2!=0 && ExMe_rd2!=IdEx_rt && MeWb_rd2==IdEx_rt)
-  //                               ? w_rslt2 : (ExMe_w && ExMe_rd2!=0 && ExMe_rd2==IdEx_rt) ? ExMe_rslt : IdEx_rrt;
-
   wire [31:0] #10 w_Ex_rrt = ( MeWb_rd2!=0 && ExMe_rd2!=IdEx_rt && MeWb_rd2==IdEx_rt)
                                 ? w_rslt2 : ( ExMe_rd2!=0 && ExMe_rd2==IdEx_rt) ? ExMe_rslt : IdEx_rrt;
 
@@ -200,61 +197,20 @@ module m_memory (w_clk, w_addr, w_we, w_din, r_dout);
   initial r_dout = 0;
 
   initial begin
-     cm_ram[0] ={`NOP};                            //     nop
-     cm_ram[1] ={`NOP};                            //     nop
-     cm_ram[2] ={`ADDI, 5'd0, 5'd20,16'd0};        //     addi $20, $0, 0
-     cm_ram[3] ={`ADDI, 5'd0, 5'd21,16'd11};       //     addi $21, $0, 11
-     cm_ram[4] ={`ADD,  5'd0, 5'd0, 5'd12,11'h20}; //     addi $12,$0, $0   // sum = 0;
-
-     cm_ram[5] ={`ADDI, 5'd0, 5'd11,16'h0};        // L03 addi $11,$0, 0
-     cm_ram[6] ={`ADDI, 5'd0, 5'd8, 16'd4096};     //     addi $8, $0, 4096
-     cm_ram[7] ={`ADDI, 5'd0, 5'd9, 16'h0};        //     addi $9, $0, 0
-     cm_ram[8] ={`ADDI, 5'd0, 5'd10,16'h0};        //     addi $10,$0, 0
-
-     cm_ram[9] ={`SW,   5'd10,5'd11,16'd0};        // L01:sw   $11,0($10)
-     cm_ram[10]={`ADDI, 5'd9, 5'd9, 16'h1};        //     addi $9, $9, 1
-     cm_ram[11]={`ADDI, 5'd11,5'd11,16'h1};        //     addi $11,$11,1
-     cm_ram[12]={`ADDI, 5'd11,5'd11,16'h1};        //     addi $11,$11,1
-     cm_ram[13]={`ADDI, 5'd11,5'd11,16'h1};        //     addi $11,$11,1
-     cm_ram[14]={`ADDI, 5'd11,5'd11,16'h1};        //     addi $11,$11,1
-     cm_ram[15]={`ADDI, 5'd10,5'd10,16'h4};        //     addi $10,$10,4
-     cm_ram[16]={`BNE,  5'd8, 5'd9, 16'hfff8};     //     bne  $8, $9, L01
-     cm_ram[17]={`NOP};                            //     nop
-
-     cm_ram[18]={`ADDI, 5'd0, 5'd8, 16'd4096};     //     addi $8, $0, 4096
-     cm_ram[19]={`ADDI, 5'd0, 5'd9, 16'h0};        //     addi $9, $0, 0
-     cm_ram[20]={`ADDI, 5'd0, 5'd10,16'h0};        //     addi $10,$0, 0
-
-     cm_ram[21]={`LW,   5'd10,5'd11,16'd0};        // L02:lw   $11,0($10)
-     cm_ram[22]={`ADDI, 5'd9, 5'd9, 16'h1};        //     addi $9, $9, 1
-     cm_ram[23]={`ADDI, 5'd10,5'd10,16'h4};        //     addi $10,$10,4
-     cm_ram[24]={`ADD,  5'd12,5'd11,5'd12,11'h20}; //     add  $12,$12,$11  // sum += $11
-     cm_ram[25]={`ADDI, 5'd12,5'd12,16'h1};        //     addi $12,$12,1    // sum ++;
-     cm_ram[26]={`ADDI, 5'd12,5'd12,16'hffff};     //     addi $12,$12,-1   // sum --;
-     cm_ram[27]={`ADDI, 5'd12,5'd12,16'h1};        //     addi $12,$12,1    // sum ++;
-     cm_ram[28]={`ADDI, 5'd12,5'd12,16'h1};        //     addi $12,$12,1    // sum ++;
-     cm_ram[29]={`ADDI, 5'd12,5'd12,16'hffff};     //     addi $12,$12,-1   // sum --;
-     cm_ram[30]={`ADDI, 5'd12,5'd12,16'h1};        //     addi $12,$12,1    // sum ++;
-     cm_ram[31]={`ADDI, 5'd12,5'd12,16'hfffe};     //     addi $12,$12,-2   // sum -= 2;
-     cm_ram[32]={`BNE,  5'd8, 5'd9, 16'hfff4};     //     bne  $8, $9, L02
-     cm_ram[33]={`NOP};                            //     nop
-
-     cm_ram[34]={`ADDI, 5'd20,5'd20,16'h1};        //     addi $20,$20,1    // j++
-     cm_ram[35]={`ADDI, 5'd8, 5'd8,16'h11};        //     addi $8, $8, 0x11 //
-     cm_ram[36]={`ADDI, 5'd8, 5'd8,16'h12};        //     addi $8, $8, 0x12 //
-     cm_ram[37]={`ADDI, 5'd8, 5'd8,16'h13};        //     addi $8, $8, 0x13 //
-     cm_ram[38]={`ADDI, 5'd8, 5'd8,16'h14};        //     addi $8, $8, 0x14 //
-     cm_ram[39]={`BNE,  5'd20,5'd21,16'hffdd};     //     bne  $20,$21,L03  // (j<4) ?
-     cm_ram[40]={`NOP};                            //     nop
-     cm_ram[41]={`ADD,  5'd12,5'd0, 5'd30,11'h20}; //     add  $30,$12,$0
-     cm_ram[42]={`ADD,  5'd30,5'd0, 5'd0, 11'h20}; //     add  $0, $30,$0 // 5ffa000
-     cm_ram[43]={`HALT, 26'h0};                    //     halt
-     cm_ram[44]={`NOP};                            //     nop
-     cm_ram[45]={`NOP};                            //     nop
-     cm_ram[46]={`NOP};                            //     nop
-     cm_ram[47]={`NOP};                            //     nop
-     cm_ram[48]={`NOP};                            //     nop
-   end
+    cm_ram[0] ={`NOP};                            //     nop
+    cm_ram[1] ={`ADD , 5'd0, 5'd9, 16'h1};
+    cm_ram[2]={`NOP};                            //     nop
+    cm_ram[3]={`NOP};                            //     nop
+    cm_ram[4]={`NOP};                            //     nop
+    cm_ram[5]={`NOP};
+    cm_ram[6] ={`ADDI, 5'd9, 5'd9, 16'h1};        //     addi $9, $9, 1
+    cm_ram[7]={`HALT, 26'h0};                    //     halt
+    cm_ram[8]={`NOP};                            //     nop
+    cm_ram[9]={`NOP};                            //     nop
+    cm_ram[10]={`NOP};                            //     nop
+    cm_ram[11]={`NOP};                            //     nop
+    cm_ram[12]={`NOP};                            //     nop
+  end
 //    cm_ram[2] ={`SW,   5'd0, 5'd1, 16'd0};        //     sw   $1, 0($0)
 //    cm_ram[13] ={`LW,   5'd0, 5'd12, 16'd0};       //     lw   $12, 0($0)
 //    cm_ram[8] ={`ADD,  5'd10,5'd11,5'd12,11'h20}; //     add  $12,$10,$11
@@ -269,8 +225,8 @@ module m_regfile (w_clk, w_rr1, w_rr2, w_wr, w_we, w_wdata, w_rdata1, w_rdata2);
   output wire [31:0] w_rdata1, w_rdata2;
 
   reg [31:0] r[0:31];
-  assign #15 w_rdata1 = (w_rr1==0) ? 0 : r[w_rr1];
-  assign #15 w_rdata2 = (w_rr2==0) ? 0 : r[w_rr2];
+  assign w_rdata1 = (w_rr1==0) ? 0 : r[w_rr1];
+  assign w_rdata2 = (w_rr2==0) ? 0 : r[w_rr2];
   always @(posedge w_clk) if(w_we) r[w_wr] <= w_wdata;
 
   initial begin
