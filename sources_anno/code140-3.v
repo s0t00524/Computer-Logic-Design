@@ -1,5 +1,5 @@
 /******************************************************************************/
-/* MultiCycle Processer with Pipeline Process              Author:  Soto Anno */
+/* Sample Verilog HDL Code for Computer Logic Design     Arch Lab. TOKYO TECH */
 /******************************************************************************/
 `default_nettype none
 
@@ -20,7 +20,7 @@ module m_top ();
 
   wire w_halt;
   wire [31:0] w_rout;
-  m_proc12 p (r_clk, r_rst, w_rout, w_halt);
+  m_proc11 p (r_clk, r_rst, w_rout, w_halt);
   always@(posedge r_clk) if (w_halt) $finish;
 
   reg [31:0] r_cnt = 0;
@@ -31,7 +31,6 @@ module m_top ();
            p.MeWb_rd2, p.w_rslt2);
     // $display("%8d : %04d %08x",  r_cnt, p.r_pc[31:2], w_rout);
   end
-  // always@(*) $display("%d", r_clk);
 endmodule
 
 /******************************************************************************/
@@ -65,13 +64,13 @@ endmodule
 */
 
 /******************************************************************************/
-module m_proc12 (w_clk, w_rst, r_rout, r_halt);
+module m_proc11 (w_clk, w_rst, r_rout, r_halt);
   input  wire w_clk, w_rst;
   output reg [31:0] r_rout;
   output reg        r_halt;
 
   reg  [31:0] IfId_pc4=0;                                    // pipe regs between IF and ID
-  reg  [31:0] IdEx_rrs=0,  IdEx_rrt=0, IdEx_rrt2=0;          // pipe regs between ID and EX
+  reg  [31:0] IdEx_rrs=0, IdEx_rrt=0, IdEx_rrt2=0;           // pipe regs between ID and EX
   reg  [31:0] ExMe_rslt=0, ExMe_rrt=0;                       // pipe regs between EX and ME
   reg  [31:0] MeWb_rslt=0;                                   // pipe regs between Me and WB
   reg   [5:0]             IdEx_op=0,  ExMe_op=0,  MeWb_op=0; //
@@ -88,7 +87,7 @@ module m_proc12 (w_clk, w_rst, r_rout, r_halt);
   reg  [31:0] r_pc  = 0;
   wire [31:0] w_pc4 = r_pc + 4;
   m_memory m_imem (w_clk, r_pc[13:2], 1'b0, 0, IfId_ir);
-  always @(posedge w_clk) begin // 1clockに１命令を行う
+  always @(posedge w_clk) begin
     r_pc     <= #3 (w_rst | r_halt) ? 0 : (w_taken) ? w_tpc : w_pc4;
     IfId_pc  <= #3 r_pc;
     IfId_pc4 <= #3 w_pc4;
@@ -107,19 +106,6 @@ module m_proc12 (w_clk, w_rst, r_rout, r_halt);
   assign      w_taken = (w_op==`BNE && w_rrs!=w_rrt);
   m_regfile m_regs (w_clk, w_rs, w_rt, MeWb_rd2, MeWb_w, w_rslt2, w_rrs, w_rrt);
 
-  // /* data forwarding */
-  // wire [31:0] w_rrs3  = (ExMe_we && MeWb_rd2!=0 && MeWb_rd2==IdEx_rs)
-  //                           ? ExMe_rslt : (ExMe_rd2!=0 && ExMe_rd2==IdEx_rs) ? w_rslt2 : w_rrs;
-  // wire [31:0] w_rrt3  = (ExMe_we && MeWb_rd2!=0 && MeWb_rd2==IdEx_rt)
-  //                           ? ExMe_rslt : (ExMe_rd2!=0 && ExMe_rd2==IdEx_rt) ? w_rslt2 : w_rrt;
-
-  wire [31:0] #10 w_rrs3 = (MeWb_w && MeWb_rd2!=0 && ExMe_rd2!=IdEx_rs && MeWb_rd2==IdEx_rs)
-                                ? w_rslt2 : (ExMe_w && ExMe_rd2!=0 && ExMe_rd2==IdEx_rs) ? ExMe_rslt : w_rrs;
-  wire [31:0] #10 w_rrt3 = (MeWb_w && MeWb_rd2!=0 && ExMe_rd2!=IdEx_rt && MeWb_rd2==IdEx_rt)
-                                ? w_rslt2 : (ExMe_w && ExMe_rd2!=0 && ExMe_rd2==IdEx_rt) ? ExMe_rslt : w_rrt;
-
-  /* クロック立ち上がりは半サイクル終わったところ
-     立ち上がる前に内容を取ってくる */
   always @(posedge w_clk) begin
     IdEx_pc   <= #3 IfId_pc;
     IdEx_op   <= #3 w_op;
@@ -129,20 +115,9 @@ module m_proc12 (w_clk, w_rst, r_rout, r_halt);
     IdEx_rrs  <= #3 w_rrs;
     IdEx_rrt  <= #3 w_rrt;
     IdEx_rrt2 <= #3 w_rrt2;
-    IdEx_rs   <= #3 w_rs;
-    IdEx_rt   <= #3 w_rt;
   end
-
   /**************************** EX stage ***********************************/
-  /* data forwarding */
-  /* クロック立ち上がりはサイクルのはじめ
-     立ち上がる前に内容を取ってくる */
-  wire [31:0] #10 w_rrs4 = (MeWb_w && MeWb_rd2!=0 && ExMe_rd2!=IdEx_rs && MeWb_rd2==IdEx_rs)
-                                ? w_rslt2 : (ExMe_w && ExMe_rd2!=0 && ExMe_rd2==IdEx_rs) ? ExMe_rslt : w_rrs;
-  wire [31:0] #10 w_rrt4 = (MeWb_w && MeWb_rd2!=0 && ExMe_rd2!=IdEx_rt && MeWb_rd2==IdEx_rt)
-                                ? w_rslt2 : (ExMe_w && ExMe_rd2!=0 && ExMe_rd2==IdEx_rt) ? ExMe_rslt : w_rrt2;
-
-  wire [31:0] #10 w_rslt = w_rrs4 + w_rrt4; // ALU
+  wire [31:0] #10 w_rslt = IdEx_rrs + IdEx_rrt2; // ALU
   always @(posedge w_clk) begin
     ExMe_pc   <= #3 IdEx_pc;
     ExMe_op   <= #3 IdEx_op;
@@ -151,14 +126,8 @@ module m_proc12 (w_clk, w_rst, r_rout, r_halt);
     ExMe_we   <= #3 IdEx_we;
     ExMe_rslt <= #3 w_rslt;
     ExMe_rrt  <= #3 IdEx_rrt;
-    ExMe_rs   <= #3 IdEx_rs;
-    ExMe_rt   <= #3 IdEx_rt;
   end
   /**************************** MEM stage **********************************/
-
-  /* data forwarding */
-  
-
   m_memory m_dmem (w_clk, ExMe_rslt[13:2], ExMe_we, ExMe_rrt, MeWb_ldd);
   always @(posedge w_clk) begin
     MeWb_pc   <= #3 ExMe_pc;
@@ -247,6 +216,7 @@ module m_memory (w_clk, w_addr, w_we, w_din, r_dout);
      cm_ram[47]={`NOP};                            //     nop
      cm_ram[48]={`NOP};                            //     nop
    end
+
 //    cm_ram[2] ={`SW,   5'd0, 5'd1, 16'd0};        //     sw   $1, 0($0)
 //    cm_ram[13] ={`LW,   5'd0, 5'd12, 16'd0};       //     lw   $12, 0($0)
 //    cm_ram[8] ={`ADD,  5'd10,5'd11,5'd12,11'h20}; //     add  $12,$10,$11
