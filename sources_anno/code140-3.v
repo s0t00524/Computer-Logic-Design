@@ -122,10 +122,8 @@ module m_proc11 (w_clk, w_rst, r_rout, r_halt);
   end
   /**************************** EX stage ***********************************/
 
-  wire [31:0] #10 w_rrs4 = (ExMe_rd2!=0 && ExMe_rd2==w_rs) ? w_rslt2
-                                : (IdEx_rd2==w_rs) ? ExMe_rslt : IdEx_rrs;
-  wire [31:0] #10 w_rrt4 = (ExMe_rd2!=0 && ExMe_rd2==w_rt) ? w_rslt2
-                                : (IdEx_rd2==w_rt) ? ExMe_rslt : IdEx_rrt2;
+  wire [31:0] #10 w_rrs4 = (IdEx_rd2==w_rs) ? ExMe_rslt : IdEx_rrs;
+  wire [31:0] #10 w_rrt4 = (IdEx_rd2==w_rt) ? ExMe_rslt : IdEx_rrt2;
 
 // wire [31:0] #10 w_rrs4 = (ExMe_we && ExMe_rd2==IdEx_rs) ? ExMe_rslt : IdEx_rrs;
 // wire [31:0] #10 w_rrt4 = (ExMe_we && ExMe_rd2==IdEx_rt) ? ExMe_rslt : IdEx_rrt2;
@@ -181,15 +179,32 @@ module m_memory (w_clk, w_addr, w_we, w_din, r_dout);
 
   initial begin
     cm_ram[0] ={`NOP};                            //     nop
-    cm_ram[1] ={`ADDI, 5'd0, 5'd1, 16'd1};       //     addi $1,  $0, 1
-    cm_ram[2] ={`ADDI, 5'd1, 5'd10,16'd1};        //     addi $10, $1, 1
-    cm_ram[3] ={`ADD , 5'd10,5'd0, 5'd10};       //     addi $0, $10, 10
-    cm_ram[4]={`HALT, 26'h0};                    //     halt
-    cm_ram[5]={`NOP};                            //     nop
-    cm_ram[6]={`NOP};                            //     nop
-    cm_ram[7]={`NOP};                            //     nop
-    cm_ram[8]={`NOP};                            //     nop
-    cm_ram[9]={`NOP};                            //     nop
+    cm_ram[1] ={`ADDI, 5'd0, 5'd8, 16'd4096};     //     addi $8, $0, 4095
+    cm_ram[2] ={`ADDI, 5'd0, 5'd9, 16'h0};        //     addi $9, $0, 0
+    cm_ram[3] ={`ADDI, 5'd0, 5'd10,16'h0};        //     addi $10,$0, 0
+    cm_ram[4] ={`SW,   5'd10,5'd9, 16'd0};        // L01:sw   $9, 0($10)
+    cm_ram[5] ={`ADDI, 5'd9, 5'd9, 16'h1};        //     addi $9, $9, 1
+    cm_ram[6] ={`ADDI, 5'd10,5'd10,16'h4};        //     addi $10,$10,4
+    cm_ram[7] ={`BNE,  5'd8, 5'd9, 16'hfffc};     //     bne  $8, $9, L01
+    cm_ram[8] ={`NOP};                            //     nop
+    cm_ram[9] ={`ADD,  5'd0, 5'd0, 5'd12,11'h20}; //     addi $12,$0, $0  // sum = 0;
+    cm_ram[10]={`ADDI, 5'd0, 5'd8, 16'd4096};     //     addi $8, $0, 4095
+    cm_ram[11]={`ADDI, 5'd0, 5'd9, 16'h0};        //     addi $9, $0, 0
+    cm_ram[12]={`ADDI, 5'd0, 5'd10,16'h0};        //     addi $10,$0, 0
+    cm_ram[13]={`LW,   5'd10,5'd11,16'd0};        // L01:lw   $11,0($10)
+    cm_ram[14]={`ADDI, 5'd9, 5'd9, 16'h1};        //     addi $9, $9, 1
+    cm_ram[15]={`ADDI, 5'd10,5'd10,16'h4};        //     addi $10,$10,4
+    cm_ram[16]={`ADD,  5'd12,5'd11,5'd12,11'h20}; //     add  $12,$12,$11 // sum+=$11
+    cm_ram[17]={`BNE,  5'd8, 5'd9, 16'hfffb};     //     bne  $8, $9, L01
+    cm_ram[18]={`NOP};                            //     nop
+    cm_ram[19]={`ADD,  5'd12,5'd0, 5'd30,11'h20}; //     add  $30,$12,$0
+    cm_ram[20]={`ADD,  5'd30,5'd0, 5'd0, 11'h20}; //     add  $0, $30,$0
+    cm_ram[21]={`HALT, 26'h0};                    //     halt
+    cm_ram[22]={`NOP};                            //     nop
+    cm_ram[23]={`NOP};                            //     nop
+    cm_ram[24]={`NOP};                            //     nop
+    cm_ram[25]={`NOP};                            //     nop
+    cm_ram[26]={`NOP};                            //     nop
   end
 //    cm_ram[2] ={`SW,   5'd0, 5'd1, 16'd0};        //     sw   $1, 0($0)
 //    cm_ram[13] ={`LW,   5'd0, 5'd12, 16'd0};       //     lw   $12, 0($0)
