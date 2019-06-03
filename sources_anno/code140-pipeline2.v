@@ -16,7 +16,7 @@
 /******************************************************************************/
 
 module m_top ();
-  reg r_clk=0; initial forever #100 r_clk = ~r_clk;
+  reg r_clk=0; initial forever #50 r_clk = ~r_clk;
   reg r_rst=0;
 
   wire w_halt;
@@ -160,7 +160,7 @@ module m_proc12 (w_clk, w_rst, r_rout, r_halt);
     ExMe_we   <=  IdEx_we;
     ExMe_rslt <=  w_rslt;
     //ExMe_rrt  <=  w_Ex_rrt; // forwarding
-    ExMe_rrt  <=  IdEx_rrt2;
+    ExMe_rrt  <=  IdEx_rrt;
     ExMe_rs   <=  IdEx_rs;
     ExMe_rt   <=  IdEx_rt;
   end
@@ -181,7 +181,7 @@ module m_proc12 (w_clk, w_rst, r_rout, r_halt);
   always @(posedge w_clk) if (MeWb_op==`HALT) r_halt <= 1;
   initial r_rout = 0;
   reg [31:0] r_tmp=0;
-  always @(posedge w_clk) r_tmp <= (w_rst) ? 0 : (w_rs==30) ? w_rrs : r_tmp;
+  always @(posedge w_clk) r_tmp <= (w_rst) ? 0 : (w_rs==30) ? w_rslt : r_tmp;
   always @(posedge w_clk) r_rout <= r_tmp;
 endmodule
 

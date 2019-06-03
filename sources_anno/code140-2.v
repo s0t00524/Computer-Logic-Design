@@ -26,9 +26,9 @@ module m_top ();
   reg [31:0] r_cnt = 0;
   always@(posedge r_clk) r_cnt <= r_cnt + 1;
   always@(posedge r_clk) begin #90
-    $write("%8d : %x %x[%x] %x %x %x | %d %x %x %x \n",
+    $write("%8d : %x %x[%x] %x %x %x | %d %x \n",
            r_cnt, p.r_pc, p.IfId_pc, p.w_op, p.IdEx_pc, p.ExMe_pc, p.MeWb_pc,
-           p.MeWb_rd2, p.w_rrs, p.w_rrt, p.w_rslt2);
+           p.MeWb_rd2, p.w_rslt2);
     //$display("%8d : %04d %08x",  r_cnt, p.r_pc[31:2], w_rout);
   end
   // always@(*) $display("%d", r_clk);
@@ -108,15 +108,15 @@ module m_proc12 (w_clk, w_rst, r_rout, r_halt);
   m_regfile m_regs (w_clk, w_rs, w_rt, MeWb_rd2, MeWb_w, w_rslt2, w_rrs, w_rrt);
 
   /* data forwarding */
-  wire [31:0] w_rrs3  = (ExMe_we && MeWb_rd2!=5'd0 && MeWb_rd2==IdEx_rs)
-                            ? ExMe_rslt : (ExMe_rd2!=5'd0 && ExMe_rd2==IdEx_rs) ? w_rslt2 : w_rrs;
-  wire [31:0] w_rrt3  = (ExMe_we && MeWb_rd2!=5'd0 && MeWb_rd2==IdEx_rt)
-                            ? ExMe_rslt : (ExMe_rd2!=5'd0 && ExMe_rd2==IdEx_rt) ? w_rslt2 : w_rrt;
+  // wire [31:0] w_rrs3  = (ExMe_we && MeWb_rd2!=5'd0 && MeWb_rd2==IdEx_rs)
+  //                           ? ExMe_rslt : (ExMe_rd2!=5'd0 && ExMe_rd2==IdEx_rs) ? w_rslt2 : w_rrs;
+  // wire [31:0] w_rrt3  = (ExMe_we && MeWb_rd2!=5'd0 && MeWb_rd2==IdEx_rt)
+  //                           ? ExMe_rslt : (ExMe_rd2!=5'd0 && ExMe_rd2==IdEx_rt) ? w_rslt2 : w_rrt;
 
-  // wire [31:0] #10 w_rrs3 = (MeWb_w && MeWb_rd2!=0 && ExMe_rd2!=IdEx_rs && MeWb_rd2==IdEx_rs)
-  //                               ? w_rslt2 : (ExMe_w && ExMe_rd2!=0 && ExMe_rd2==IdEx_rs) ? ExMe_rslt : IdEx_rrs;
-  // wire [31:0] #10 w_rrt3 = (MeWb_w && MeWb_rd2!=0 && ExMe_rd2!=IdEx_rt && MeWb_rd2==IdEx_rt)
-  //                               ? w_rslt2 : (ExMe_w && ExMe_rd2!=0 && ExMe_rd2==IdEx_rt) ? ExMe_rslt : IdEx_rrt;
+  wire [31:0] #10 w_rrs3 = (MeWb_w && MeWb_rd2!=0 && ExMe_rd2!=IdEx_rs && MeWb_rd2==IdEx_rs)
+                                ? w_rslt2 : (ExMe_w && ExMe_rd2!=0 && ExMe_rd2==IdEx_rs) ? ExMe_rslt : IdEx_rrs;
+  wire [31:0] #10 w_rrt3 = (MeWb_w && MeWb_rd2!=0 && ExMe_rd2!=IdEx_rt && MeWb_rd2==IdEx_rt)
+                                ? w_rslt2 : (ExMe_w && ExMe_rd2!=0 && ExMe_rd2==IdEx_rt) ? ExMe_rslt : IdEx_rrt;
 
   /* クロック立ち上がりは半サイクル終わったところ
      立ち上がる前に内容を取ってくる */
